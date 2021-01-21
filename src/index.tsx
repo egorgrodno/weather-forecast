@@ -1,17 +1,15 @@
-import React from 'react';
-import ReactDOM from 'react-dom';
-import './index.css';
-import App from './App';
-import reportWebVitals from './reportWebVitals';
+import * as R from 'react'
+import * as RD from 'react-dom'
+import * as M from '@material-ui/core'
+import { App } from 'component/App'
+import { theme } from 'theme'
 
-ReactDOM.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-  document.getElementById('root')
-);
-
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
+RD.render(
+  <R.StrictMode>
+    <M.ThemeProvider theme={theme}>
+      <M.CssBaseline />
+      <App />
+    </M.ThemeProvider>
+  </R.StrictMode>,
+  document.getElementById('root'),
+)
