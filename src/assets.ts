@@ -1,6 +1,7 @@
-import amchartsLogo from 'assets/amcharts-logo.svg'
-import githubLogo from 'assets/github-logo.svg'
-import openWeatherLogo from 'assets/open-weather-logo.png'
+import amchartsLogo from 'assets/logos/amcharts.svg'
+import githubLogo from 'assets/logos/github.svg'
+import mapboxLogo from 'assets/logos/mapbox.svg'
+import openWeatherLogo from 'assets/logos/open-weather.png'
 import day from 'assets/amcharts/animated/day.svg'
 
-export { amchartsLogo, githubLogo, openWeatherLogo, day }
+export { amchartsLogo, githubLogo, mapboxLogo, openWeatherLogo, day }

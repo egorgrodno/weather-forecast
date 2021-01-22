@@ -1,6 +1,18 @@
 import * as R from 'react'
 import * as M from '@material-ui/core'
 import * as I from '@material-ui/icons'
+import * as A from 'fp-ts/Array'
+import * as O from 'fp-ts/Option'
+import { pipe } from 'fp-ts/function'
+import * as RD from 'lib/RemoteData'
+import { Place, SearchResult } from 'lib/Types'
+import { CollapseFade } from 'component/CollapseFade'
+
+type Props = {
+  result: RD.RemoteData<SearchResult>
+  onSearch: (query: string) => void
+  onPlaceSelect: (place: Place) => void
+}
 
 const useStyles = M.makeStyles(theme => ({
   root: {
@@ -25,75 +37,105 @@ const useStyles = M.makeStyles(theme => ({
   suggestions: {
     paddingTop: 0,
   },
+  suggestion: {
+    transition: 'none',
+  },
 }))
 
-type TimeoutRef = R.MutableRefObject<NodeJS.Timeout | undefined>
-
-const setRefTimeout = (timeoutRef: TimeoutRef, f: () => void, n: number): void => {
-  timeoutRef.current = setTimeout(() => {
-    timeoutRef.current = undefined
-    f()
-  }, n)
-}
-
-const clearRefTimeout = (timeoutRef: TimeoutRef): void => {
-  if (timeoutRef.current !== undefined) {
-    clearTimeout(timeoutRef.current)
-    timeoutRef.current = undefined
-  }
-}
-
-export const Search: R.FC = () => {
+export const Search: R.FC<Props> = props => {
   const classes = useStyles()
-  const theme = M.useTheme()
-  const [collapsed, setCollapsed] = R.useState(false)
-  const [faded, setFaded] = R.useState(false)
-  const timeoutRef = R.useRef<NodeJS.Timeout>()
-  const handleOpen = () => {
-    if (!collapsed) {
-      setRefTimeout(timeoutRef, () => setFaded(true), theme.transitions.duration.shortest)
-      setCollapsed(true)
+  const [query, setQuery] = R.useState('')
+  const [focused, setFocused] = R.useState(false)
+  const [open, setOpen] = R.useState(false)
+  const pendingWithData =
+    RD.isPending(props.result)
+    && O.isSome(props.result.prevData)
+    && A.isNonEmpty(props.result.prevData.value)
+  const shouldBeOpen = query !== '' && (pendingWithData || RD.isSuccess(props.result))
+  const handleFocus = () => {
+    setFocused(true)
+    if (shouldBeOpen) {
+      handleOpen()
     }
   }
+  const handleBlur = () => {
+    setFocused(false)
+    handleClose()
+  }
+  const handleOpen = () => {
+    setOpen(true)
+  }
   const handleClose = () => {
-    clearRefTimeout(timeoutRef)
-    setFaded(false)
-    setCollapsed(false)
+    setOpen(false)
+  }
+  const handleQueryChange = (query: string) => {
+    if (query === '') {
+      handleClose()
+    }
+    setQuery(query)
+    props.onSearch(query)
+  }
+  const handlePlaceSelect = (place: Place) => {
+    setQuery(place.place_name)
+    props.onPlaceSelect(place)
+  }
+
+  if (shouldBeOpen && focused && !open) {
+    handleOpen()
   }
 
   return (
     <div className={classes.root}>
-      <M.ClickAwayListener onClickAway={handleClose}>
-        <M.Card>
-          <div className={classes.inputRoot}>
-            <I.Search className={classes.searchIcon} />
+      <M.Card>
+        <div className={classes.inputRoot}>
+          <I.Search className={classes.searchIcon} />
 
-            <M.InputBase
-              className={classes.input}
-              onClick={handleOpen}
-              placeholder="Seach Location"
-            />
+          <M.InputBase
+            className={classes.input}
+            placeholder="Seach Location"
+            value={query}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            onChange={e => handleQueryChange(e.target.value)}
+          />
 
-            <M.IconButton className={classes.clearButton}>
-              <I.Clear />
-            </M.IconButton>
-          </div>
+          <M.IconButton className={classes.clearButton}>
+            <I.Clear />
+          </M.IconButton>
+        </div>
 
-          <M.Box height={4}>
-            <M.LinearProgress color="primary" />
-          </M.Box>
-
-          <M.Collapse in={collapsed}>
-            <M.Fade in={faded}>
-              <M.List className={classes.suggestions}>
-                <M.ListItem button onClick={handleClose}>Address 1</M.ListItem>
-                <M.ListItem button onClick={handleClose}>Address 2</M.ListItem>
-                <M.ListItem button onClick={handleClose}>Address 3</M.ListItem>
-              </M.List>
-            </M.Fade>
-          </M.Collapse>
-        </M.Card>
-      </M.ClickAwayListener>
+        <CollapseFade open={open}>
+          <M.List className={classes.suggestions}>
+            {pipe(
+              RD.getData(props.result),
+              O.map((places): R.ReactNode => (
+                <>
+                  {A.isEmpty(places) && query !== '' && (
+                    <M.ListItem
+                      className={classes.suggestion}
+                      disabled={RD.isPending(props.result)}
+                    >
+                      No results
+                    </M.ListItem>
+                  )}
+                  {places.map(place => (
+                    <M.ListItem
+                      key={place.id}
+                      className={classes.suggestion}
+                      button
+                      disabled={RD.isPending(props.result)}
+                      onClick={() => handlePlaceSelect(place)}
+                    >
+                      {place.place_name}
+                    </M.ListItem>
+                  ))}
+                </>
+              )),
+              O.toNullable,
+            )}
+          </M.List>
+        </CollapseFade>
+      </M.Card>
     </div>
   )
 }
