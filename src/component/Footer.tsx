@@ -26,7 +26,7 @@ export const Footer: R.FC = R.memo(() => {
 
   return (
     <M.AppBar className={classes.root} component="footer" position="static">
-      <M.Grid container spacing={2} wrap="nowrap">
+      <M.Grid container spacing={3}>
         {externalLinks.map(([url, logoSrc, logoAlt]) => (
           <M.Grid key={url} item>
             <a href={url} target="_blank" rel="noopener noreferrer">

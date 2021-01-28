@@ -1,27 +1,31 @@
 import * as O from 'fp-ts/Option'
-import { Subject, of, timer } from 'rxjs'
+import { Subject, asyncScheduler, merge } from 'rxjs'
 import * as Rx from 'rxjs/operators'
 import * as RD from 'lib/RemoteData'
 import * as Http from 'lib/Http'
-import { SearchResult } from 'lib/Types'
-import { getMapboxUrl } from 'lib/Util'
+import { Forecast, ForecastData, Place, SearchResult } from 'lib/Types'
+import { getMapboxUrl, getOpenweatherUrl } from 'lib/Util'
+
+const searchThrottleMs = 400
+const forecaseThrottleMs = 1200
 
 const Store = () => {
+  const place$ = new Subject<Place>()
   const searchQuery$ = new Subject<string>()
-
-  const searchResult$ = searchQuery$.pipe(
-    Rx.switchMap(str => {
-      const sanitized = str.replace(/,+/g, ' ').trim()
-
-      if (sanitized === '') {
-        return of(RD.success<SearchResult>([]))
-      } else {
-        return timer(500).pipe(
-          Rx.switchMap(() => Http.get(getMapboxUrl(sanitized), SearchResult)),
-          Rx.startWith(RD.pending<SearchResult>(O.none)),
-        )
-      }
-    }),
+  const nonEmptyQuery$ = searchQuery$.pipe(Rx.filter(query => query !== ''))
+  const emptyQuery$ = searchQuery$.pipe(Rx.filter(query => query === ''))
+  const searchResult$ = merge(
+    emptyQuery$.pipe(
+      Rx.mapTo(RD.success<SearchResult>([])),
+    ),
+    nonEmptyQuery$.pipe(
+      Rx.mapTo(RD.pending<SearchResult>(O.none)),
+    ),
+    nonEmptyQuery$.pipe(
+      Rx.throttleTime(searchThrottleMs, asyncScheduler, { trailing: true }),
+      Rx.switchMap(query => Http.get(getMapboxUrl(query), SearchResult)),
+    ),
+  ).pipe(
     Rx.scan(
       (prevRd, rd): RD.RemoteData<SearchResult> =>
         RD.isPending(rd)
@@ -32,10 +36,19 @@ const Store = () => {
       RD.initial<SearchResult>(),
     ),
   )
+  const forecastData$ = place$.pipe(
+    Rx.throttleTime(forecaseThrottleMs),
+    Rx.switchMap(place => Http.get(getOpenweatherUrl(place.center), Forecast).pipe(
+      Rx.map(RD.map((forecast): ForecastData => ({ place, forecast }))),
+    )),
+    Rx.startWith(RD.initial<ForecastData>()),
+  )
 
   return {
-    search: (str: string) => searchQuery$.next(str),
+    search: (query: string) => searchQuery$.next(query.replace(/,+/g, ' ').trim()),
+    selectPlace: (place: Place) => place$.next(place),
     searchResult$,
+    forecastData$: forecastData$,
   }
 }
 

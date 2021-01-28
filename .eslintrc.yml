@@ -1,0 +1,23 @@
+---
+
+ignorePatterns:
+  - '*.js'
+  - '*.spec.ts'
+
+extends:
+  - react-app
+
+rules:
+  array-callback-return: off
+  arrow-parens: [error, as-needed]
+  eol-last: [error, always]
+  eqeqeq: [error, always]
+  jsx-quotes: [error, prefer-double]
+  no-console: warn
+  no-extra-parens: [error, all, { ignoreJSX: all }]
+  no-trailing-spaces: warn
+  no-warning-comments: warn
+  quote-props: [warn, as-needed]
+  quotes: [warn, single, { avoidEscape: false }]
+  semi: [error, never, { beforeStatementContinuationChars: never }]
+  '@typescript-eslint/no-redeclare': off

@@ -1,104 +1,87 @@
 import * as R from 'react'
+import * as RD from 'lib/RemoteData'
 import * as M from '@material-ui/core'
-import { day } from 'assets'
+import * as TS from 'lib/TransitionState'
+import { ForecastData } from 'lib/Types'
+import { ForecastCard } from 'component/ForecastCard'
 
-// base offset in units
-const x = 4
-const y = 3
+type Props = {
+  forecastData: RD.RemoteData<ForecastData>
+}
 
-const nextDays = [
-  { day: 'wed', min: 18, max: 35 },
-  { day: 'thu', min: 20, max: 34 },
-  { day: 'fri', min: 18, max: 36 },
-  { day: 'sat', min: 16, max: 32 },
-]
+type Transition = TS.TransitionState<RD.RemoteData<ForecastData>>
 
-const useStyles = M.makeStyles(theme => ({
-  img: {
-    display: 'block',
-    width: '100%',
+export const Forecast: R.FC<Props> = props => {
+  const [transState, setTransState] = R.useState<Transition>(TS.initial)
+  const stepTransition = () => setTransState(TS.step(transState))
+
+  R.useEffect(() => {
+    if (!RD.isInitial(props.forecastData)) {
+      switch (transState.status) {
+        case 'initial':
+          return setTransState(TS.entering(props.forecastData))
+
+        case 'leaving':
+        case 'entering':
+        case 'entered':
+          return setTransState(TS.leaving(transState.curr, props.forecastData))
+      }
+    }
+  }, [props.forecastData])
+
+  if (transState.status === 'initial') {
+    return null
+  } else {
+    return (
+      <M.Fade
+        in={transState.status !== 'leaving'}
+        onEntered={stepTransition}
+        onExited={stepTransition}
+      >
+        <div>
+          <ForecastState forecastData={transState.curr} />
+        </div>
+      </M.Fade>
+    )
+  }
+}
+
+const useForecastStateStyles = M.makeStyles({
+  loader: {
+    height: 370,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  day: {
-    textAlign: 'center',
-  },
-  dayLabel: {
-    textTransform: 'uppercase',
-  },
-  daySep: {
-    margin: theme.spacing(0.5, 0),
-  },
-}))
+})
 
-export const Forecast: R.FC = () => {
-  const classes = useStyles()
+export const ForecastState: R.FC<Props> = props => {
+  const classes = useForecastStateStyles()
 
-  return (
-    <M.Card>
-      <M.Box component="header" px={x} pt={y}>
-        <M.Grid container justify="space-between" alignItems="center" wrap="nowrap">
-          <M.Grid item zeroMinWidth>
-            <M.Typography variant="h5" noWrap>
-              San Francisco, CA
-            </M.Typography>
-            <M.Typography variant="subtitle1" noWrap>
-              Thunderstorms
-            </M.Typography>
-          </M.Grid>
+  switch (props.forecastData.status) {
+    case RD.RemoteDataStatus.Initial:
+      return null
 
-          <M.Grid item>
-            <M.Typography variant="body1" color="textSecondary" noWrap>
-              SE 6 km/h
-            </M.Typography>
-            <M.Typography variant="body1" color="textSecondary" noWrap>
-              Humidity 70%
-            </M.Typography>
-          </M.Grid>
-        </M.Grid>
-      </M.Box>
+    case RD.RemoteDataStatus.Pending:
+      return (
+        <div className={classes.loader}>
+          <M.CircularProgress />
+        </div>
+      )
 
-      <M.Box>
-        <M.Grid container justify="space-between" alignItems="center" wrap="nowrap">
-          <M.Grid item xs={6}>
-            <img className={classes.img} src={day} alt="day" />
-          </M.Grid>
+    case RD.RemoteDataStatus.Failure:
+      return (
+        <M.Typography color="error">
+          Network request failed, try again later.
+        </M.Typography>
+      )
 
-          <M.Grid item xs={6}>
-            <M.Typography variant="h1">
-              32&deg;
-            </M.Typography>
-          </M.Grid>
-        </M.Grid>
-      </M.Box>
-
-      <M.Box component="footer" pb={y}>
-        <M.Grid container justify="space-between" alignItems="center" wrap="nowrap">
-          {nextDays.map((d, i) => (
-            <R.Fragment key={i}>
-              {i > 0 && <M.Divider className={classes.daySep} orientation="vertical" flexItem />}
-
-              <M.Grid className={classes.day} item xs={3}>
-                <M.Typography
-                  className={classes.dayLabel}
-                  variant="body2"
-                  align="center"
-                  gutterBottom
-                  noWrap
-                >
-                  {d.day}
-                </M.Typography>
-
-                <M.Typography variant="body2" align="center" noWrap>
-                  {d.max}
-                </M.Typography>
-
-                <M.Typography variant="body2" color="textSecondary" align="center" noWrap>
-                  {d.min}
-                </M.Typography>
-              </M.Grid>
-            </R.Fragment>
-          ))}
-        </M.Grid>
-      </M.Box>
-    </M.Card>
-  )
+    case RD.RemoteDataStatus.Success:
+      return (
+        <ForecastCard
+          place={props.forecastData.data.place}
+          forecast={props.forecastData.data.forecast}
+        />
+      )
+  }
 }

@@ -75,8 +75,12 @@ export const Search: R.FC<Props> = props => {
     setQuery(query)
     props.onSearch(query)
   }
+  const handleQueryClear = () => {
+    setQuery('')
+    props.onSearch(query)
+  }
   const handlePlaceSelect = (place: Place) => {
-    setQuery(place.place_name)
+    handleQueryClear()
     props.onPlaceSelect(place)
   }
 
@@ -86,22 +90,24 @@ export const Search: R.FC<Props> = props => {
 
   return (
     <div className={classes.root}>
-      <M.Card>
+      <M.Paper elevation={focused ? 3 : 1}>
         <div className={classes.inputRoot}>
           <I.Search className={classes.searchIcon} />
 
           <M.InputBase
             className={classes.input}
-            placeholder="Seach Location"
+            placeholder="Seach location"
             value={query}
             onFocus={handleFocus}
             onBlur={handleBlur}
             onChange={e => handleQueryChange(e.target.value)}
           />
 
-          <M.IconButton className={classes.clearButton}>
-            <I.Clear />
-          </M.IconButton>
+          {query !== '' && (
+            <M.IconButton className={classes.clearButton} onClick={handleQueryClear}>
+              <I.Clear />
+            </M.IconButton>
+          )}
         </div>
 
         <CollapseFade open={open}>
@@ -135,7 +141,7 @@ export const Search: R.FC<Props> = props => {
             )}
           </M.List>
         </CollapseFade>
-      </M.Card>
+      </M.Paper>
     </div>
   )
 }

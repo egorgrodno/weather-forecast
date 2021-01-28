@@ -1,4 +1,5 @@
 import * as O from 'fp-ts/Option'
+import { pipe } from 'fp-ts/function'
 
 export enum RemoteDataStatus {
   Initial = 'Initial',
@@ -62,6 +63,9 @@ export const isResult = <A>(rd: RemoteData<A>): rd is Result<A> =>
   isSuccess(rd) || isFailure(rd)
 
 // Helpers
+
+export const map = <A, B> (f: (data: A) => B) => (rd: RemoteData<A>): RemoteData<B> =>
+  isSuccess(rd) ? success(f(rd.data)) : isPending(rd) ? pending(pipe(rd.prevData, O.map(f))) : rd
 
 export const getData = <A> (rd: RemoteData<A>): O.Option<A> =>
   isSuccess(rd) ? O.some(rd.data) : isPending(rd) ? rd.prevData : O.none
